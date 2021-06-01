@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#camera stream
+camera_stream.py
+./camera_stream.py
