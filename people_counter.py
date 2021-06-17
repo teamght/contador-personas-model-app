@@ -16,7 +16,7 @@ from pyimagesearch.trackableobject import TrackableObject
 from imutils.video import VideoStream
 from imutils.video import FPS
 import numpy as np
-#import argparse
+import os
 import imutils
 import time
 import dlib
@@ -27,10 +27,14 @@ LINK_CAMARA = os.environ["LINK_CAMARA"]
 args = {}
 args['prototxt'] = 'mobilenet_ssd/MobileNetSSD_deploy.prototxt'
 args['model'] = 'mobilenet_ssd/MobileNetSSD_deploy.caffemodel'
-args['input'] = None #'videos/example_01.mp4'
+#args['input'] = None #'videos/example_01.mp4'
+args['input'] = LINK_CAMARA
 args['output'] = 'output/webcam_output.avi'
 args['confidence'] = 0.4
 args['skip_frames'] = 30
+
+cantidad_personas_afuera = 0
+cantidad_personas_dentro = 0
 
 # initialize the list of class labels MobileNet SSD was trained to
 # detect
@@ -53,7 +57,7 @@ def capturar_video():
 	# otherwise, grab a reference to the video file
 	else:
 		print("[INFO] opening video file...")
-		vs = cv2.VideoCapture(args["input"])
+		vs = cv2.VideoCapture(args["input"], cv2.CAP_FFMPEG)
 
 	# initialize the video writer (we'll instantiate later if need be)
 	writer = None
@@ -73,8 +77,8 @@ def capturar_video():
 	# initialize the total number of frames processed thus far, along
 	# with the total number of objects that have moved either up or down
 	totalFrames = 0
-	totalDown = 0
-	totalUp = 0
+	global cantidad_personas_afuera
+	global cantidad_personas_dentro
 
 	# start the frames per second throughput estimator
 	fps = FPS().start()
@@ -219,14 +223,14 @@ def capturar_video():
 					# is moving up) AND the centroid is above the center
 					# line, count the object
 					if direction < 0 and centroid[1] < H // 2:
-						totalUp += 1
+						cantidad_personas_dentro += 1
 						to.counted = True
 
 					# if the direction is positive (indicating the object
 					# is moving down) AND the centroid is below the
 					# center line, count the object
 					elif direction > 0 and centroid[1] > H // 2:
-						totalDown += 1
+						cantidad_personas_afuera += 1
 						to.counted = True
 
 			# store the trackable object in our dictionary
@@ -241,12 +245,12 @@ def capturar_video():
 			
 		# construct a tuple of information we will be displaying on the
 		# frame
-		store = totalUp - totalDown
+		store = cantidad_personas_dentro - cantidad_personas_afuera
 		info = [
-			("Out", totalDown),
-			("In", totalUp),
+			("Afuera", cantidad_personas_afuera),
+			("Adentro", cantidad_personas_dentro),
 			("Status", status),
-			("In_Store", store)
+			("Dentro del Edificio", store)
 		]
 		
 		if store > 2:
@@ -270,7 +274,6 @@ def capturar_video():
 		# if the `q` key was pressed, break from the loop
 		#if key == ord("q"):
 		#	break
-
 		frame_html = cv2.imencode('.jpg', frame)[1].tobytes()
 		yield (b'--frame_html\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame_html + b'\r\n')
 		#time.sleep(0.1)
@@ -300,21 +303,34 @@ def capturar_video():
 	# close any open windows
 	#cv2.destroyAllWindows()
 
+def reset_counter_people():
+	global cantidad_personas_afuera
+	global cantidad_personas_dentro
+	
+	cantidad_personas_afuera = 0
+	cantidad_personas_dentro = 0
+
 import os
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, request, Response
 
 PORT = int(os.environ.get("PORT", 5000))
 app = Flask(__name__)
 
 @app.route('/')
+@app.route('/index', methods =["GET", "POST"])
 def index():
-    """Video streaming home page."""
-    return render_template('index.html')
+	"""Video streaming home page."""
+	if request.method == 'POST':
+		data = request.json
+		if data['reset']:
+			reset_counter_people()
+		return '', 200
+	else:
+		return render_template('index.html')
 
 @app.route('/video_feed')
 def video_feed():
-    """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(capturar_video(),
+	return Response(capturar_video(),
                     mimetype='multipart/x-mixed-replace; boundary=frame_html')
 
 if __name__ == '__main__':
