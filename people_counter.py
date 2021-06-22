@@ -333,5 +333,14 @@ def video_feed():
 	return Response(capturar_video(),
                     mimetype='multipart/x-mixed-replace; boundary=frame_html')
 
+@app.route('/video_data', methods =["GET", "POST"])
+def video_data():
+	global cantidad_personas_afuera
+	global cantidad_personas_dentro
+	
+	print('Cantidad personas afuera: {}'.format(cantidad_personas_afuera))
+	print('Cantidad personas dentro: {}'.format(cantidad_personas_dentro))
+	return {'cantidad_personas_afuera': cantidad_personas_afuera, 'cantidad_personas_dentro': cantidad_personas_dentro}
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=PORT, debug=True)
