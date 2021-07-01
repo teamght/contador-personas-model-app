@@ -252,6 +252,7 @@ def capturar_video():
 			# construct a tuple of information we will be displaying on the
 			# frame
 			store = cantidad_personas_dentro - cantidad_personas_afuera
+			store = store if store > 0 else 0
 			info = [
 				("Afuera", cantidad_personas_afuera),
 				("Adentro", cantidad_personas_dentro),
